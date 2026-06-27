@@ -127,8 +127,6 @@ impl Tray for XoneTray {
                 let p_blink_fast = led_path.clone();
                 let p_blink_normal = led_path.clone();
                 let p_blink_slow = led_path.clone();
-                let p_fade_slow = led_path.clone();
-                let p_fade_fast = led_path.clone();
                 led_sub.push(
                     SubMenu {
                         label: name,
@@ -197,24 +195,6 @@ impl Tray for XoneTray {
                                                 &p_blink_slow,
                                                 xone::LED_BLINK_SLOW,
                                             );
-                                        }),
-                                        ..Default::default()
-                                    }
-                                    .into(),
-                                    StandardItem {
-                                        label: "Fade Slow".into(),
-                                        activate: Box::new(move |_| {
-                                            let _ =
-                                                xone::led_effect(&p_fade_slow, xone::LED_FADE_SLOW);
-                                        }),
-                                        ..Default::default()
-                                    }
-                                    .into(),
-                                    StandardItem {
-                                        label: "Fade Fast".into(),
-                                        activate: Box::new(move |_| {
-                                            let _ =
-                                                xone::led_effect(&p_fade_fast, xone::LED_FADE_FAST);
                                         }),
                                         ..Default::default()
                                     }

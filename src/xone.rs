@@ -15,8 +15,6 @@ pub const LED_ON: u32 = 1;
 pub const LED_BLINK_FAST: u32 = 2;
 pub const LED_BLINK_NORMAL: u32 = 3;
 pub const LED_BLINK_SLOW: u32 = 4;
-pub const LED_FADE_SLOW: u32 = 8;
-pub const LED_FADE_FAST: u32 = 9;
 
 /// GIP_LED_BRIGHTNESS_DEFAULT from xone/driver/common.c
 const LED_BRIGHTNESS_DEFAULT: u32 = 20;
