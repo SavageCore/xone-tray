@@ -1,6 +1,6 @@
 [package]
 name = "xone-tray"
-version = "0.0.0"
+version = "0.1.0"
 edition = "2021"
 description = "System tray app to control the xone Xbox wireless dongle driver"
 authors = ["SavageCore <talk@savagecore.uk>"]
