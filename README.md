@@ -33,7 +33,7 @@ chmod +x xone-tray-*.AppImage
 
 The first run will offer to install the udev rule via the system authentication dialog (polkit / `pkexec`). You only need to do this once.
 
-### AUR (Arch / Nobara)
+### AUR (Arch Linux)
 
 ```sh
 yay -S xone-tray-bin
@@ -67,10 +67,10 @@ cargo build --release
 ### Git hooks
 
 ```sh
-git config core.hooksPath scripts/hooks
+lefthook install
 ```
 
-This runs `cargo fmt --check` and `cargo clippy -D warnings` before each commit.
+This runs `cargo fmt --check` and `cargo clippy -D warnings` before each commit via [lefthook](https://lefthook.dev).
 
 ## Release
 
