@@ -4,10 +4,10 @@ System tray app to control the [xone](https://github.com/dlundqvist/xone) Xbox w
 
 ## Features
 
-- **Pairing mode** — toggle on/off directly from the tray
-- **Connected controllers** — live count in the tooltip
-- **Power off** — per-controller or all at once
-- **LED brightness** — Off / Low / Medium / High per connected controller
+- **Pairing mode** - toggle on/off directly from the tray
+- **Connected controllers** - live count in the tooltip
+- **Power off** - per-controller or all at once
+- **LED brightness** - Off / Low / Medium / High per connected controller
 - Refreshes state every 3 s; syncs with external changes automatically
 
 ## Installation
@@ -49,8 +49,7 @@ For AppImage and Flatpak, use the **"Install udev rule (admin)…"** menu entry 
 To install manually:
 
 ```sh
-sudo cp packaging/50-xone-tray.rules /etc/udev/rules.d/
-sudo udevadm control --reload-rules && sudo udevadm trigger
+make install-udev
 ```
 
 ## GNOME
@@ -60,9 +59,20 @@ GNOME removed system tray support in 3.26. Install the [AppIndicator and KStatus
 ## Building from source
 
 ```sh
-cargo build --release
+make release
 ./target/release/xone-tray
 ```
+
+| Command | Description |
+|---|---|
+| `make build` | Debug build |
+| `make release` | Release build |
+| `make test` | Run tests |
+| `make lint` | `fmt --check` + clippy |
+| `make fmt` | Auto-format |
+| `make install-udev` | Install udev rule (requires sudo) |
+| `make rpm` | Build RPM (requires `cargo-generate-rpm`) |
+| `make deb` | Build DEB (requires `cargo-deb`) |
 
 ### Git hooks
 
@@ -70,11 +80,11 @@ cargo build --release
 lefthook install
 ```
 
-This runs `cargo fmt --check` and `cargo clippy -D warnings` before each commit via [lefthook](https://lefthook.dev).
+This runs `make lint` before each commit via [lefthook](https://lefthook.dev).
 
 ## Release
 
-Tag and push — GitHub Actions builds RPM, DEB, AppImage, and a tarball for the AUR:
+Tag and push - GitHub Actions builds RPM, DEB, AppImage, and a tarball for the AUR:
 
 ```sh
 git tag v0.2.0
@@ -85,4 +95,4 @@ AUR is updated automatically when the `AUR_PUSH` repo variable is `true` and an 
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+MIT - see [LICENSE](LICENSE).
