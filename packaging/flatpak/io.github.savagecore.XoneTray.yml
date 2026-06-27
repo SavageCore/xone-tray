@@ -1,0 +1,40 @@
+app-id: io.github.savagecore.XoneTray
+runtime: org.freedesktop.Platform
+runtime-version: '24.08'
+sdk: org.freedesktop.Sdk
+sdk-extensions:
+  - org.freedesktop.Sdk.Extension.rust-stable
+command: xone-tray
+
+finish-args:
+  - --device=all
+  # sysfs writes require host filesystem access; xone-tray will show the
+  # "Install udev rule (admin)" menu entry if it can't write to pairing.
+  - --filesystem=host-os
+  - --socket=session-bus
+  - --talk-name=org.kde.StatusNotifierWatcher
+  - --talk-name=com.canonical.AppMenu.Registrar
+  - --talk-name=org.freedesktop.Notifications
+
+build-options:
+  append-path: /usr/lib/sdk/rust-stable/bin
+  env:
+    CARGO_HOME: /run/build/xone-tray/cargo
+
+modules:
+  - name: xone-tray
+    buildsystem: simple
+    build-commands:
+      # NOTE: For Flathub submission, run `flatpak-cargo-generator.py Cargo.lock`
+      # to produce a vendored sources list and replace the `--share=network` line.
+      - cargo fetch --manifest-path Cargo.toml
+      - cargo build --release --manifest-path Cargo.toml
+      - install -Dm755 target/release/xone-tray /app/bin/xone-tray
+      - install -Dm644 packaging/xone-tray.desktop /app/share/applications/io.github.savagecore.XoneTray.desktop
+      - install -Dm644 packaging/io.github.savagecore.XoneTray.svg /app/share/icons/hicolor/scalable/apps/io.github.savagecore.XoneTray.svg
+    sources:
+      - type: dir
+        path: ../..
+    build-options:
+      build-args:
+        - --share=network

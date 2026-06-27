@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=xone Tray
+GenericName=Xbox Wireless Tray
+Comment=Control the xone Xbox wireless dongle driver
+Exec=xone-tray
+Icon=xone-tray
+Categories=Utility;Settings;
+Keywords=xbox;controller;wireless;xone;gamepad;
+StartupNotify=false
+NoDisplay=false

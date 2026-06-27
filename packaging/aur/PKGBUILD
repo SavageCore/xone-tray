@@ -1,0 +1,28 @@
+# Maintainer: SavageCore <talk@savagecore.uk>
+pkgname=xone-tray-bin
+pkgver=0.1.0
+pkgrel=1
+pkgdesc="System tray app to control the xone Xbox wireless dongle driver"
+arch=('x86_64')
+url="https://github.com/SavageCore/xone-tray"
+license=('MIT')
+depends=()
+optdepends=(
+    'xone-dkms: the driver this app controls'
+    'xone-dongle-firmware: firmware for Xbox wireless receivers'
+)
+provides=('xone-tray')
+conflicts=('xone-tray')
+source=(
+    "${pkgname}-${pkgver}.tar.gz::https://github.com/SavageCore/xone-tray/releases/download/v${pkgver}/xone-tray-${pkgver}-x86_64.tar.gz"
+)
+sha256sums=('SKIP')
+
+package() {
+    cd "${srcdir}/xone-tray-${pkgver}"
+    install -Dm755 xone-tray                          "${pkgdir}/usr/bin/xone-tray"
+    install -Dm644 xone-tray.desktop                  "${pkgdir}/usr/share/applications/xone-tray.desktop"
+    install -Dm644 io.github.savagecore.XoneTray.svg  "${pkgdir}/usr/share/icons/hicolor/scalable/apps/xone-tray.svg"
+    install -Dm644 50-xone-tray.rules                 "${pkgdir}/usr/lib/udev/rules.d/50-xone-tray.rules"
+    install -Dm644 LICENSE                            "${pkgdir}/usr/share/licenses/${pkgname}/LICENSE"
+}

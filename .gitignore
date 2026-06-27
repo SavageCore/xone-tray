@@ -1,0 +1,6 @@
+/target/
+Cargo.lock
+dist/
+AppDir/
+*.AppImage
+linuxdeploy-*.AppImage

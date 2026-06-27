@@ -1,0 +1,13 @@
+# xone-tray: grant the 'input' group write access to the xone dongle sysfs controls.
+# Install to /etc/udev/rules.d/ and reload with:
+#   udevadm control --reload-rules && udevadm trigger
+
+# Pairing, power-off, and active-clients on the dongle interface
+SUBSYSTEM=="usb", DRIVER=="xone-dongle", \
+    RUN+="/bin/chmod g+w /sys%p/pairing /sys%p/poweroff", \
+    RUN+="/bin/chgrp input /sys%p/pairing /sys%p/poweroff"
+
+# GIP controller LEDs (present only while a controller is connected)
+SUBSYSTEM=="leds", KERNEL=="gip*", \
+    RUN+="/bin/chmod g+w /sys%p/brightness /sys%p/mode", \
+    RUN+="/bin/chgrp input /sys%p/brightness /sys%p/mode"

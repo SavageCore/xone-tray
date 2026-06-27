@@ -1,0 +1,39 @@
+[package]
+name = "xone-tray"
+version = "0.1.0"
+edition = "2021"
+description = "System tray app to control the xone Xbox wireless dongle driver"
+authors = ["SavageCore <talk@savagecore.uk>"]
+license = "MIT"
+repository = "https://github.com/SavageCore/xone-tray"
+homepage = "https://github.com/SavageCore/xone-tray"
+readme = "README.md"
+
+[dependencies]
+ksni = "0.2"
+
+[package.metadata.deb]
+maintainer = "SavageCore <talk@savagecore.uk>"
+copyright = "2026, SavageCore <talk@savagecore.uk>"
+license-file = ["LICENSE", "4"]
+extended-description = "System tray app to control the xone Xbox wireless dongle driver on Linux. Provides pairing mode toggle, active-client count, per-controller power-off, and LED brightness control."
+depends = "$auto"
+section = "utility"
+priority = "optional"
+maintainer-scripts = "packaging/debian"
+assets = [
+    ["target/release/xone-tray", "usr/bin/", "755"],
+    ["packaging/xone-tray.desktop", "usr/share/applications/", "644"],
+    ["packaging/io.github.savagecore.XoneTray.svg", "usr/share/icons/hicolor/scalable/apps/xone-tray.svg", "644"],
+    ["packaging/50-xone-tray.rules", "usr/lib/udev/rules.d/", "644"],
+]
+
+[package.metadata.generate-rpm]
+assets = [
+    { source = "target/release/xone-tray", dest = "/usr/bin/xone-tray", mode = "0755" },
+    { source = "packaging/xone-tray.desktop", dest = "/usr/share/applications/xone-tray.desktop", mode = "0644" },
+    { source = "packaging/io.github.savagecore.XoneTray.svg", dest = "/usr/share/icons/hicolor/scalable/apps/xone-tray.svg", mode = "0644" },
+    { source = "packaging/50-xone-tray.rules", dest = "/usr/lib/udev/rules.d/50-xone-tray.rules", mode = "0644" },
+]
+post_install_script = "udevadm control --reload-rules && udevadm trigger || true"
+pre_uninstall_script = "true"

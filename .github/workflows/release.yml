@@ -1,0 +1,141 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    name: Build & Package
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Cache cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-release-${{ hashFiles('**/Cargo.lock') }}
+
+      # Enforce the same gates as CI before touching packaging
+      - run: cargo fmt --check
+      - run: cargo clippy -- -D warnings
+      - run: cargo test
+      - run: cargo build --release
+
+      - name: Install packaging tools
+        run: |
+          cargo install --locked cargo-deb
+          cargo install --locked cargo-generate-rpm
+
+      - name: Build DEB
+        run: cargo deb
+
+      - name: Build RPM
+        run: |
+          cargo generate-rpm
+
+      - name: Build AppImage
+        run: |
+          VERSION=${GITHUB_REF_NAME#v}
+          wget -q https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage
+          chmod +x linuxdeploy-x86_64.AppImage
+
+          mkdir -p AppDir/usr/{bin,share/applications,share/icons/hicolor/scalable/apps}
+          cp target/release/xone-tray AppDir/usr/bin/
+          cp packaging/xone-tray.desktop AppDir/usr/share/applications/
+          cp packaging/io.github.savagecore.XoneTray.svg \
+             AppDir/usr/share/icons/hicolor/scalable/apps/xone-tray.svg
+
+          # linuxdeploy expects the desktop file to name the binary
+          ARCH=x86_64 ./linuxdeploy-x86_64.AppImage \
+            --appdir AppDir \
+            --desktop-file AppDir/usr/share/applications/xone-tray.desktop \
+            --output appimage
+
+          mv xone-tray-*.AppImage xone-tray-${VERSION}-x86_64.AppImage
+
+      - name: Build release tarball (for AUR)
+        run: |
+          VERSION=${GITHUB_REF_NAME#v}
+          mkdir -p dist/xone-tray-${VERSION}
+          cp target/release/xone-tray                         dist/xone-tray-${VERSION}/
+          cp packaging/50-xone-tray.rules                     dist/xone-tray-${VERSION}/
+          cp packaging/xone-tray.desktop                      dist/xone-tray-${VERSION}/
+          cp packaging/io.github.savagecore.XoneTray.svg      dist/xone-tray-${VERSION}/
+          cp LICENSE                                           dist/xone-tray-${VERSION}/
+          tar -czf xone-tray-${VERSION}-x86_64.tar.gz -C dist xone-tray-${VERSION}
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            target/debian/*.deb
+            target/generate-rpm/*.rpm
+            xone-tray-*-x86_64.AppImage
+            xone-tray-*-x86_64.tar.gz
+            packaging/50-xone-tray.rules
+
+  aur:
+    name: Update AUR
+    needs: build
+    runs-on: ubuntu-latest
+    if: ${{ vars.AUR_PUSH == 'true' }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download release tarball for checksum
+        run: |
+          VERSION=${GITHUB_REF_NAME#v}
+          gh release download ${GITHUB_REF_NAME} \
+            --pattern "xone-tray-${VERSION}-x86_64.tar.gz" \
+            --dir /tmp/aur-dl
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - name: Update PKGBUILD & push to AUR
+        env:
+          AUR_SSH_KEY: ${{ secrets.AUR_SSH_KEY }}
+        run: |
+          VERSION=${GITHUB_REF_NAME#v}
+          TAR="/tmp/aur-dl/xone-tray-${VERSION}-x86_64.tar.gz"
+          SHA256=$(sha256sum "$TAR" | cut -d' ' -f1)
+
+          sed -i "s/^pkgver=.*/pkgver=${VERSION}/" packaging/aur/PKGBUILD
+          sed -i "s/^pkgrel=.*/pkgrel=1/"          packaging/aur/PKGBUILD
+          sed -i "s/sha256sums=.*/sha256sums=('${SHA256}')/" packaging/aur/PKGBUILD
+
+          mkdir -p ~/.ssh
+          echo "$AUR_SSH_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan aur.archlinux.org >> ~/.ssh/known_hosts
+
+          git config --global user.name  "SavageCore"
+          git config --global user.email "talk@savagecore.uk"
+
+          git clone ssh://aur@aur.archlinux.org/xone-tray-bin.git /tmp/aur-pkg
+          cp packaging/aur/PKGBUILD /tmp/aur-pkg/PKGBUILD
+
+          # Generate .SRCINFO inside the AUR package directory
+          docker run --rm \
+            -v /tmp/aur-pkg:/pkg \
+            archlinux:base-devel \
+            bash -c "cd /pkg && makepkg --printsrcinfo > .SRCINFO"
+
+          cd /tmp/aur-pkg
+          git add PKGBUILD .SRCINFO
+          git commit -m "Update to v${VERSION}"
+          git push
