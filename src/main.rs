@@ -114,22 +114,21 @@ impl Tray for XoneTray {
         }
 
         // LED submenu - only present when controllers with LEDs are connected.
-        // ponytail: best-effort without stable hardware test environment.
-        // Only write mode when not already in custom mode (2) to avoid triggering
-        // controller resets seen when repeatedly writing the mode register.
+        // ponytail: modes are GIP-standard but driver notes they can vary by device.
         if !self.leds.is_empty() {
             let mut led_sub: Vec<MenuItem<Self>> = Vec::new();
             for led_path in &self.leds {
-                let name = led_path
-                    .file_name()
-                    .unwrap_or_default()
-                    .to_string_lossy()
-                    .into_owned();
+                let name = xone::led_name(led_path);
                 let max_b = xone::max_brightness(led_path);
                 let p_off = led_path.clone();
                 let p_low = led_path.clone();
                 let p_med = led_path.clone();
                 let p_high = led_path.clone();
+                let p_blink_fast = led_path.clone();
+                let p_blink_normal = led_path.clone();
+                let p_blink_slow = led_path.clone();
+                let p_fade_slow = led_path.clone();
+                let p_fade_fast = led_path.clone();
                 led_sub.push(
                     SubMenu {
                         label: name,
@@ -137,7 +136,7 @@ impl Tray for XoneTray {
                             StandardItem {
                                 label: "Off".into(),
                                 activate: Box::new(move |_| {
-                                    let _ = xone::set_brightness(&p_off, 0);
+                                    let _ = xone::led_off(&p_off);
                                 }),
                                 ..Default::default()
                             }
@@ -145,10 +144,7 @@ impl Tray for XoneTray {
                             StandardItem {
                                 label: "Low".into(),
                                 activate: Box::new(move |_| {
-                                    if xone::current_mode(&p_low) != 2 {
-                                        let _ = xone::set_mode(&p_low, 2);
-                                    }
-                                    let _ = xone::set_brightness(&p_low, (max_b / 4).max(1));
+                                    let _ = xone::led_solid(&p_low, max_b / 4);
                                 }),
                                 ..Default::default()
                             }
@@ -156,10 +152,7 @@ impl Tray for XoneTray {
                             StandardItem {
                                 label: "Medium".into(),
                                 activate: Box::new(move |_| {
-                                    if xone::current_mode(&p_med) != 2 {
-                                        let _ = xone::set_mode(&p_med, 2);
-                                    }
-                                    let _ = xone::set_brightness(&p_med, (max_b / 2).max(1));
+                                    let _ = xone::led_solid(&p_med, max_b / 2);
                                 }),
                                 ..Default::default()
                             }
@@ -167,12 +160,66 @@ impl Tray for XoneTray {
                             StandardItem {
                                 label: "High".into(),
                                 activate: Box::new(move |_| {
-                                    if xone::current_mode(&p_high) != 2 {
-                                        let _ = xone::set_mode(&p_high, 2);
-                                    }
-                                    // Cap at 75% — writing raw max caused controller resets.
-                                    let _ = xone::set_brightness(&p_high, max_b * 3 / 4);
+                                    let _ = xone::led_solid(&p_high, max_b);
                                 }),
+                                ..Default::default()
+                            }
+                            .into(),
+                            SubMenu {
+                                label: "Effects".into(),
+                                submenu: vec![
+                                    StandardItem {
+                                        label: "Blink Fast".into(),
+                                        activate: Box::new(move |_| {
+                                            let _ = xone::led_effect(
+                                                &p_blink_fast,
+                                                xone::LED_BLINK_FAST,
+                                            );
+                                        }),
+                                        ..Default::default()
+                                    }
+                                    .into(),
+                                    StandardItem {
+                                        label: "Blink Normal".into(),
+                                        activate: Box::new(move |_| {
+                                            let _ = xone::led_effect(
+                                                &p_blink_normal,
+                                                xone::LED_BLINK_NORMAL,
+                                            );
+                                        }),
+                                        ..Default::default()
+                                    }
+                                    .into(),
+                                    StandardItem {
+                                        label: "Blink Slow".into(),
+                                        activate: Box::new(move |_| {
+                                            let _ = xone::led_effect(
+                                                &p_blink_slow,
+                                                xone::LED_BLINK_SLOW,
+                                            );
+                                        }),
+                                        ..Default::default()
+                                    }
+                                    .into(),
+                                    StandardItem {
+                                        label: "Fade Slow".into(),
+                                        activate: Box::new(move |_| {
+                                            let _ =
+                                                xone::led_effect(&p_fade_slow, xone::LED_FADE_SLOW);
+                                        }),
+                                        ..Default::default()
+                                    }
+                                    .into(),
+                                    StandardItem {
+                                        label: "Fade Fast".into(),
+                                        activate: Box::new(move |_| {
+                                            let _ =
+                                                xone::led_effect(&p_fade_fast, xone::LED_FADE_FAST);
+                                        }),
+                                        ..Default::default()
+                                    }
+                                    .into(),
+                                ],
                                 ..Default::default()
                             }
                             .into(),
