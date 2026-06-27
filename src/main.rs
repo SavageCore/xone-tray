@@ -12,6 +12,7 @@ struct XoneTray {
     clients: u32,
     leds: Vec<PathBuf>,
     can_write: bool,
+    update_available: Option<String>,
 }
 
 impl XoneTray {
@@ -21,6 +22,7 @@ impl XoneTray {
             clients: 0,
             leds: vec![],
             can_write: false,
+            update_available: None,
         };
         t.refresh();
         t
@@ -58,7 +60,21 @@ impl Tray for XoneTray {
     }
 
     fn menu(&self) -> Vec<MenuItem<Self>> {
-        let mut items: Vec<MenuItem<Self>> = vec![
+        let mut items: Vec<MenuItem<Self>> = Vec::new();
+
+        if let Some(ref version) = self.update_available {
+            items.push(
+                StandardItem {
+                    label: format!("⬆ Update available: {}", version),
+                    activate: Box::new(|_| xone::open_releases_page()),
+                    ..Default::default()
+                }
+                .into(),
+            );
+            items.push(MenuItem::Separator);
+        }
+
+        items.extend([
             CheckmarkItem {
                 label: "Pairing Mode".into(),
                 enabled: self.can_write,
@@ -78,7 +94,7 @@ impl Tray for XoneTray {
                 ..Default::default()
             }
             .into(),
-        ];
+        ]);
 
         // Power off submenu - only present when clients are connected.
         if self.clients > 0 {
@@ -253,7 +269,15 @@ fn main() {
     let handle = service.handle();
     service.spawn();
 
-    // Refresh state every 3 s so the tooltip and menu stay in sync with external changes.
+    // Check for updates once at startup in the background.
+    let update_handle = handle.clone();
+    thread::spawn(move || {
+        if let Some(version) = xone::check_for_update() {
+            update_handle.update(|tray| tray.update_available = Some(version));
+        }
+    });
+
+    // Refresh sysfs state every 3 s.
     loop {
         thread::sleep(Duration::from_secs(3));
         handle.update(|tray| tray.refresh());

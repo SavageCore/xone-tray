@@ -193,6 +193,38 @@ pub fn install_udev_rule() -> io::Result<()> {
     }
 }
 
+/// Check GitHub releases for a version newer than the running binary.
+/// Returns the tag string (e.g. "v0.2.0") if an update is available, None otherwise.
+/// Runs in a background thread — silently swallows all errors.
+pub fn check_for_update() -> Option<String> {
+    let body = ureq::get("https://api.github.com/repos/SavageCore/xone-tray/releases/latest")
+        .set(
+            "User-Agent",
+            concat!("xone-tray/", env!("CARGO_PKG_VERSION")),
+        )
+        .call()
+        .ok()?
+        .into_string()
+        .ok()?;
+
+    // Pull tag_name out of JSON without a serde dep.
+    // Response contains: "tag_name":"v0.1.0"
+    let tag = body.split("\"tag_name\":").nth(1)?.split('"').nth(1)?;
+    let remote = tag.trim_start_matches('v');
+    let current = env!("CARGO_PKG_VERSION");
+    if !remote.is_empty() && remote != current {
+        Some(tag.to_string())
+    } else {
+        None
+    }
+}
+
+pub fn open_releases_page() {
+    let _ = std::process::Command::new("xdg-open")
+        .arg("https://github.com/SavageCore/xone-tray/releases/latest")
+        .spawn();
+}
+
 fn not_found(msg: &'static str) -> io::Error {
     io::Error::new(io::ErrorKind::NotFound, msg)
 }

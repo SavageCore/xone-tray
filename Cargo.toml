@@ -11,6 +11,7 @@ readme = "README.md"
 
 [dependencies]
 ksni = "0.2"
+ureq = "2"
 
 [package.metadata.deb]
 maintainer = "SavageCore <talk@savagecore.uk>"
