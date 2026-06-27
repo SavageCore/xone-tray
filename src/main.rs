@@ -51,7 +51,7 @@ impl Tray for XoneTray {
 
     fn title(&self) -> String {
         format!(
-            "xone — pairing {} | {} connected",
+            "xone - pairing {} | {} connected",
             if self.pairing { "ON" } else { "off" },
             self.clients
         )
@@ -80,7 +80,7 @@ impl Tray for XoneTray {
             .into(),
         ];
 
-        // Power off submenu — only present when clients are connected.
+        // Power off submenu - only present when clients are connected.
         if self.clients > 0 {
             let n = self.clients;
             let mut sub: Vec<MenuItem<Self>> = vec![StandardItem {
@@ -113,8 +113,10 @@ impl Tray for XoneTray {
             );
         }
 
-        // LED submenu — only present when controllers with LEDs are connected.
-        // ponytail: can't test without hardware; mode=2 enables custom brightness.
+        // LED submenu - only present when controllers with LEDs are connected.
+        // ponytail: best-effort without stable hardware test environment.
+        // Only write mode when not already in custom mode (2) to avoid triggering
+        // controller resets seen when repeatedly writing the mode register.
         if !self.leds.is_empty() {
             let mut led_sub: Vec<MenuItem<Self>> = Vec::new();
             for led_path in &self.leds {
@@ -143,7 +145,9 @@ impl Tray for XoneTray {
                             StandardItem {
                                 label: "Low".into(),
                                 activate: Box::new(move |_| {
-                                    let _ = xone::set_mode(&p_low, 2);
+                                    if xone::current_mode(&p_low) != 2 {
+                                        let _ = xone::set_mode(&p_low, 2);
+                                    }
                                     let _ = xone::set_brightness(&p_low, (max_b / 4).max(1));
                                 }),
                                 ..Default::default()
@@ -152,7 +156,9 @@ impl Tray for XoneTray {
                             StandardItem {
                                 label: "Medium".into(),
                                 activate: Box::new(move |_| {
-                                    let _ = xone::set_mode(&p_med, 2);
+                                    if xone::current_mode(&p_med) != 2 {
+                                        let _ = xone::set_mode(&p_med, 2);
+                                    }
                                     let _ = xone::set_brightness(&p_med, (max_b / 2).max(1));
                                 }),
                                 ..Default::default()
@@ -161,8 +167,11 @@ impl Tray for XoneTray {
                             StandardItem {
                                 label: "High".into(),
                                 activate: Box::new(move |_| {
-                                    let _ = xone::set_mode(&p_high, 2);
-                                    let _ = xone::set_brightness(&p_high, max_b);
+                                    if xone::current_mode(&p_high) != 2 {
+                                        let _ = xone::set_mode(&p_high, 2);
+                                    }
+                                    // Cap at 75% — writing raw max caused controller resets.
+                                    let _ = xone::set_brightness(&p_high, max_b * 3 / 4);
                                 }),
                                 ..Default::default()
                             }

@@ -25,7 +25,7 @@ fn leds_base() -> Cow<'static, str> {
 }
 
 /// First dongle directory that contains a 'pairing' file.
-// ponytail: first dongle only — multi-dongle is YAGNI, revisit if reported.
+// ponytail: first dongle only - multi-dongle is YAGNI, revisit if reported.
 pub fn dongle_dir() -> Option<PathBuf> {
     fs::read_dir(dongle_base().as_ref()).ok()?.find_map(|e| {
         let path = e.ok()?.path();
@@ -49,10 +49,19 @@ pub fn set_pairing(enabled: bool) -> io::Result<()> {
 
 pub fn active_clients() -> io::Result<u32> {
     let dir = dongle_dir().ok_or_else(|| not_found("no xone dongle"))?;
-    fs::read_to_string(dir.join("active_clients"))?
-        .trim()
-        .parse()
-        .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))
+    let contents = fs::read_to_string(dir.join("active_clients"))?;
+    // Format: "Active clients: N\n[00]*\t[08]\n..."
+    contents
+        .lines()
+        .next()
+        .and_then(|l| l.strip_prefix("Active clients: "))
+        .and_then(|n| n.parse().ok())
+        .ok_or_else(|| {
+            io::Error::new(
+                io::ErrorKind::InvalidData,
+                "unexpected active_clients format",
+            )
+        })
 }
 
 /// Power off a specific client (0–15) or all clients (-1).
@@ -82,6 +91,13 @@ pub fn max_brightness(led: &Path) -> u32 {
         .ok()
         .and_then(|s| s.trim().parse().ok())
         .unwrap_or(5)
+}
+
+pub fn current_mode(led: &Path) -> u32 {
+    fs::read_to_string(led.join("mode"))
+        .ok()
+        .and_then(|s| s.trim().parse().ok())
+        .unwrap_or(0)
 }
 
 pub fn set_mode(led: &Path, mode: u32) -> io::Result<()> {
@@ -137,7 +153,7 @@ mod tests {
     use super::*;
     use std::fs;
 
-    /// Exercises sysfs glob + read/write against a tmp fixture — no hardware needed.
+    /// Exercises sysfs glob + read/write against a tmp fixture - no hardware needed.
     #[test]
     fn test_sysfs_layer() {
         let tmp = std::env::temp_dir().join("xone-tray-test");
@@ -148,7 +164,11 @@ mod tests {
         fs::create_dir_all(&dongle).unwrap();
         fs::create_dir_all(&gip_led).unwrap();
         fs::write(dongle.join("pairing"), "0\n").unwrap();
-        fs::write(dongle.join("active_clients"), "2\n").unwrap();
+        fs::write(
+            dongle.join("active_clients"),
+            "Active clients: 2\n[00]*\t[08]\n[01]\t[09]\n",
+        )
+        .unwrap();
         fs::write(dongle.join("poweroff"), "").unwrap();
         fs::write(gip_led.join("brightness"), "5\n").unwrap();
         fs::write(gip_led.join("max_brightness"), "5\n").unwrap();

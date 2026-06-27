@@ -1,4 +1,4 @@
-.PHONY: build release test lint fmt clean install-udev rpm deb
+.PHONY: build release test lint fmt clean watch install-udev rpm deb
 
 build:
 	cargo build
@@ -18,6 +18,9 @@ fmt:
 
 clean:
 	cargo clean
+
+watch:
+	cargo watch -x run
 
 install-udev:
 	sudo cp packaging/50-xone-tray.rules /etc/udev/rules.d/
