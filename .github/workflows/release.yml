@@ -62,13 +62,12 @@ jobs:
           cp packaging/io.github.savagecore.XoneTray.svg \
              AppDir/usr/share/icons/hicolor/scalable/apps/xone-tray.svg
 
-          # linuxdeploy expects the desktop file to name the binary
+          # OUTPUT overrides the name linuxdeploy derives from the desktop file's Name= field
+          OUTPUT=xone-tray-${VERSION}-x86_64.AppImage \
           ARCH=x86_64 ./linuxdeploy-x86_64.AppImage \
             --appdir AppDir \
             --desktop-file AppDir/usr/share/applications/xone-tray.desktop \
             --output appimage
-
-          mv xone-tray-*.AppImage xone-tray-${VERSION}-x86_64.AppImage
 
       - name: Build release tarball (for AUR)
         run: |
