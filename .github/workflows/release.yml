@@ -13,7 +13,7 @@ jobs:
       contents: write
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
@@ -24,7 +24,7 @@ jobs:
         run: sudo apt-get install -y libdbus-1-dev pkg-config
 
       - name: Cache cargo
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: |
             ~/.cargo/registry
@@ -81,7 +81,7 @@ jobs:
           tar -czf xone-tray-${VERSION}-x86_64.tar.gz -C dist xone-tray-${VERSION}
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           files: |
             target/debian/*.deb
@@ -98,7 +98,7 @@ jobs:
       contents: write
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Build Arch package & repo database
         run: |
@@ -143,10 +143,10 @@ jobs:
       contents: write
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Cache Flatpak runtimes
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.local/share/flatpak
           key: flatpak-freedesktop-24.08
