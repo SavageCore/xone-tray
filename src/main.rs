@@ -266,8 +266,19 @@ impl Tray for XoneTray {
 }
 
 fn main() {
-    // ponytail: unwrap — startup failure should crash loudly
-    let handle = XoneTray::new().spawn().unwrap();
+    // At login the StatusNotifierWatcher (tray host) may not be on the bus yet,
+    // so spawn() can fail with NoReply/ServiceUnknown. Retry until it comes up.
+    // ponytail: infinite retry every 2s; a tray without a host is useless, and
+    // on a system with no SNI host at all this just idles cheaply.
+    let handle = loop {
+        match XoneTray::new().spawn() {
+            Ok(h) => break h,
+            Err(e) => {
+                eprintln!("xone-tray: tray host not ready ({e}), retrying in 2s");
+                thread::sleep(Duration::from_secs(2));
+            }
+        }
+    };
 
     // Check for updates once at startup in the background.
     let update_handle = handle.clone();
