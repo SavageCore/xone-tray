@@ -198,13 +198,14 @@ pub fn install_udev_rule() -> io::Result<()> {
 /// Runs in a background thread — silently swallows all errors.
 pub fn check_for_update() -> Option<String> {
     let body = ureq::get("https://api.github.com/repos/SavageCore/xone-tray/releases/latest")
-        .set(
+        .header(
             "User-Agent",
             concat!("xone-tray/", env!("CARGO_PKG_VERSION")),
         )
         .call()
         .ok()?
-        .into_string()
+        .body_mut()
+        .read_to_string()
         .ok()?;
 
     // Pull tag_name out of JSON without a serde dep.
