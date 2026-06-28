@@ -1,6 +1,6 @@
 # Maintainer: SavageCore <talk@savagecore.uk>
 pkgname=xone-tray
-pkgver=0.0.0
+pkgver=0.1.0
 pkgrel=1
 pkgdesc="System tray app to control the xone Xbox wireless dongle driver"
 arch=('x86_64')
