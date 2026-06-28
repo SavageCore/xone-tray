@@ -10,8 +10,8 @@ homepage = "https://github.com/SavageCore/xone-tray"
 readme = "README.md"
 
 [dependencies]
-ksni = "0.2"
-ureq = "2"
+ksni = { version = "0.3", features = ["blocking"] }
+ureq = "3"
 
 [package.metadata.deb]
 maintainer = "SavageCore <talk@savagecore.uk>"

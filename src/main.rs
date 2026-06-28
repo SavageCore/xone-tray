@@ -3,6 +3,7 @@ mod xone;
 use std::{path::PathBuf, thread, time::Duration};
 
 use ksni::{
+    blocking::TrayMethods,
     menu::{CheckmarkItem, StandardItem, SubMenu},
     MenuItem, Tray,
 };
@@ -265,9 +266,8 @@ impl Tray for XoneTray {
 }
 
 fn main() {
-    let service = ksni::TrayService::new(XoneTray::new());
-    let handle = service.handle();
-    service.spawn();
+    // ponytail: unwrap — startup failure should crash loudly
+    let handle = XoneTray::new().spawn().unwrap();
 
     // Check for updates once at startup in the background.
     let update_handle = handle.clone();
