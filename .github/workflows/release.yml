@@ -69,7 +69,7 @@ jobs:
             --desktop-file AppDir/usr/share/applications/xone-tray.desktop \
             --output appimage
 
-      - name: Build release tarball (for AUR)
+      - name: Build release tarball
         run: |
           VERSION=${GITHUB_REF_NAME#v}
           mkdir -p dist/xone-tray-${VERSION}
@@ -90,54 +90,85 @@ jobs:
             xone-tray-*-x86_64.tar.gz
             packaging/50-xone-tray.rules
 
-  aur:
-    name: Update AUR
+  pacman-repo:
+    name: Publish Pacman Repo
     needs: build
     runs-on: ubuntu-latest
-    if: ${{ vars.AUR_PUSH == 'true' }}
+    permissions:
+      contents: write
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Download release tarball for checksum
+      - name: Build Arch package & repo database
         run: |
           VERSION=${GITHUB_REF_NAME#v}
           gh release download ${GITHUB_REF_NAME} \
             --pattern "xone-tray-${VERSION}-x86_64.tar.gz" \
-            --dir /tmp/aur-dl
+            --dir /tmp/pkg-dl
+          SHA256=$(sha256sum /tmp/pkg-dl/xone-tray-${VERSION}-x86_64.tar.gz | cut -d' ' -f1)
+
+          mkdir -p /tmp/pkg-build /tmp/pacman-repo
+          sed "s/^pkgver=.*/pkgver=${VERSION}/" packaging/pacman/PKGBUILD \
+            | sed "s/sha256sums=.*/sha256sums=('${SHA256}')/" \
+            > /tmp/pkg-build/PKGBUILD
+
+          docker run --rm \
+            -v /tmp/pkg-build:/pkg \
+            -v /tmp/pacman-repo:/repo \
+            archlinux:base-devel \
+            bash -c "
+              useradd -m builder
+              chown builder:builder /pkg
+              cd /pkg && su builder -c 'makepkg --noconfirm'
+              cp /pkg/*.pkg.tar.zst /repo/
+              repo-add /repo/xone-tray.db.tar.zst /repo/*.pkg.tar.zst
+            "
         env:
           GH_TOKEN: ${{ github.token }}
 
-      - name: Update PKGBUILD & push to AUR
-        env:
-          AUR_SSH_KEY: ${{ secrets.AUR_SSH_KEY }}
+      - name: Deploy to GitHub Pages
+        uses: JamesIves/github-pages-deploy-action@v4
+        with:
+          branch: gh-pages
+          folder: /tmp/pacman-repo
+          target-folder: pacman
+          clean: true
+
+  flatpak-repo:
+    name: Publish Flatpak Repo
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cache Flatpak runtimes
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/share/flatpak
+          key: flatpak-freedesktop-24.08
+
+      - name: Install Flatpak tools & runtime
         run: |
-          VERSION=${GITHUB_REF_NAME#v}
-          TAR="/tmp/aur-dl/xone-tray-${VERSION}-x86_64.tar.gz"
-          SHA256=$(sha256sum "$TAR" | cut -d' ' -f1)
+          sudo apt-get install -y flatpak flatpak-builder
+          flatpak remote-add --user --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
+          flatpak install --user -y flathub \
+            org.freedesktop.Platform//24.08 \
+            org.freedesktop.Sdk//24.08 \
+            org.freedesktop.Sdk.Extension.rust-stable//24.08
 
-          sed -i "s/^pkgver=.*/pkgver=${VERSION}/" packaging/aur/PKGBUILD
-          sed -i "s/^pkgrel=.*/pkgrel=1/"          packaging/aur/PKGBUILD
-          sed -i "s/sha256sums=.*/sha256sums=('${SHA256}')/" packaging/aur/PKGBUILD
+      - name: Build Flatpak & export repo
+        run: |
+          flatpak-builder --repo=flatpak-repo --force-clean --user builddir \
+            packaging/flatpak/io.github.savagecore.XoneTray.yml
 
-          mkdir -p ~/.ssh
-          echo "$AUR_SSH_KEY" > ~/.ssh/id_ed25519
-          chmod 600 ~/.ssh/id_ed25519
-          ssh-keyscan aur.archlinux.org >> ~/.ssh/known_hosts
-
-          git config --global user.name  "SavageCore"
-          git config --global user.email "talk@savagecore.uk"
-
-          git clone ssh://aur@aur.archlinux.org/xone-tray-bin.git /tmp/aur-pkg
-          cp packaging/aur/PKGBUILD /tmp/aur-pkg/PKGBUILD
-
-          # Generate .SRCINFO inside the AUR package directory
-          docker run --rm \
-            -v /tmp/aur-pkg:/pkg \
-            archlinux:base-devel \
-            bash -c "cd /pkg && makepkg --printsrcinfo > .SRCINFO"
-
-          cd /tmp/aur-pkg
-          git add PKGBUILD .SRCINFO
-          git commit -m "Update to v${VERSION}"
-          git push
+      - name: Deploy to GitHub Pages
+        uses: JamesIves/github-pages-deploy-action@v4
+        with:
+          branch: gh-pages
+          folder: flatpak-repo
+          target-folder: flatpak
+          clean: true
