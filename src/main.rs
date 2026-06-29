@@ -97,6 +97,22 @@ impl Tray for XoneTray {
             .into(),
         ]);
 
+        for led in &self.leds {
+            let name = xone::led_name(led);
+            let label = match xone::battery(led) {
+                Some(b) => format!("🔋 {name}: {b}"),
+                None => format!("🎮 {name}"),
+            };
+            items.push(
+                StandardItem {
+                    label,
+                    enabled: false,
+                    ..Default::default()
+                }
+                .into(),
+            );
+        }
+
         // Power off submenu - only present when clients are connected.
         if self.clients > 0 {
             let n = self.clients;

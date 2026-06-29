@@ -129,6 +129,29 @@ pub fn led_name(led: &Path) -> String {
         .into_owned()
 }
 
+/// Coarse battery state for the LED's controller, e.g. "High" or "Low (charging)".
+/// None when no power_supply is present or level is Unknown.
+pub fn battery(led: &Path) -> Option<String> {
+    let rd = fs::read_dir(led.join("device/power_supply")).ok()?;
+    for entry in rd.filter_map(|e| e.ok()) {
+        let dir = entry.path();
+        let level = fs::read_to_string(dir.join("capacity_level")).ok()?;
+        let level = level.trim();
+        if level.is_empty() || level == "Unknown" {
+            continue;
+        }
+        let charging = fs::read_to_string(dir.join("status"))
+            .map(|s| s.trim() == "Charging")
+            .unwrap_or(false);
+        return Some(if charging {
+            format!("{level} (charging)")
+        } else {
+            level.to_string()
+        });
+    }
+    None
+}
+
 pub fn max_brightness(led: &Path) -> u32 {
     fs::read_to_string(led.join("max_brightness"))
         .ok()
@@ -264,6 +287,12 @@ mod tests {
         fs::write(gip_led.join("max_brightness"), "50\n").unwrap();
         fs::write(gip_led.join("mode"), "1\n").unwrap();
 
+        // Battery fixture
+        let ps = gip_led.join("device/power_supply/gip0.0");
+        fs::create_dir_all(&ps).unwrap();
+        fs::write(ps.join("capacity_level"), "High\n").unwrap();
+        fs::write(ps.join("status"), "Discharging\n").unwrap();
+
         // SAFETY: single-threaded test, no concurrent env reads.
         unsafe {
             std::env::set_var("XONE_SYSFS_BASE", tmp.join("xone-dongle").to_str().unwrap());
@@ -300,6 +329,15 @@ mod tests {
 
         assert_eq!(led_name(led), "Microsoft Xbox Controller");
         assert_eq!(max_brightness(led), 50);
+
+        // Battery
+        let ps = led.join("device/power_supply/gip0.0");
+        assert_eq!(battery(led), Some("High".into()));
+        fs::write(ps.join("status"), "Charging\n").unwrap();
+        assert_eq!(battery(led), Some("High (charging)".into()));
+        fs::write(ps.join("capacity_level"), "Unknown\n").unwrap();
+        assert_eq!(battery(led), None);
+        fs::write(ps.join("capacity_level"), "High\n").unwrap();
 
         led_off(led).unwrap();
         assert_eq!(fs::read_to_string(led.join("mode")).unwrap().trim(), "0");
