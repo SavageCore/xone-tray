@@ -243,6 +243,26 @@ pub fn check_for_update() -> Option<String> {
     }
 }
 
+pub fn notify_low_battery(name: &str, level: &str) {
+    let urgency = if level == "Critical" {
+        "critical"
+    } else {
+        "normal"
+    };
+    let _ = Command::new("notify-send")
+        .args([
+            "--urgency",
+            urgency,
+            "--app-name",
+            "xone-tray",
+            "--icon",
+            "battery-low",
+            "Controller battery low",
+            &format!("{name}: {level}"),
+        ])
+        .spawn();
+}
+
 pub fn open_releases_page() {
     let _ = std::process::Command::new("xdg-open")
         .arg("https://github.com/SavageCore/xone-tray/releases/latest")

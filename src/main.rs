@@ -1,6 +1,6 @@
 mod xone;
 
-use std::{path::PathBuf, thread, time::Duration};
+use std::{collections::HashSet, path::PathBuf, thread, time::Duration};
 
 use ksni::{
     blocking::TrayMethods,
@@ -14,6 +14,7 @@ struct XoneTray {
     leds: Vec<PathBuf>,
     can_write: bool,
     update_available: Option<String>,
+    low_battery_notified: HashSet<PathBuf>,
 }
 
 impl XoneTray {
@@ -24,6 +25,7 @@ impl XoneTray {
             leds: vec![],
             can_write: false,
             update_available: None,
+            low_battery_notified: HashSet::new(),
         };
         t.refresh();
         t
@@ -38,6 +40,23 @@ impl XoneTray {
             self.clients = v;
         }
         self.leds = xone::leds();
+        // Prune notified set to controllers still present.
+        self.low_battery_notified.retain(|p| self.leds.contains(p));
+        for led in &self.leds {
+            match xone::battery(led).as_deref() {
+                Some("Low") | Some("Critical") => {
+                    if self.low_battery_notified.insert(led.clone()) {
+                        xone::notify_low_battery(
+                            &xone::led_name(led),
+                            xone::battery(led).as_deref().unwrap_or("Low"),
+                        );
+                    }
+                }
+                _ => {
+                    self.low_battery_notified.remove(led);
+                }
+            }
+        }
     }
 }
 
