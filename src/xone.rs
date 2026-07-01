@@ -34,6 +34,35 @@ fn leds_base() -> Cow<'static, str> {
         .unwrap_or(Cow::Borrowed("/sys/class/leds"))
 }
 
+/// Config directory: XONE_CONFIG_DIR (tests) → XDG_CONFIG_HOME → $HOME/.config, + xone-tray.
+fn config_dir() -> PathBuf {
+    if let Ok(v) = std::env::var("XONE_CONFIG_DIR") {
+        return PathBuf::from(v);
+    }
+    let base = std::env::var("XDG_CONFIG_HOME")
+        .map(PathBuf::from)
+        .unwrap_or_else(|_| {
+            std::env::var("HOME")
+                .map(|h| PathBuf::from(h).join(".config"))
+                .unwrap_or_else(|_| PathBuf::from(".config"))
+        });
+    base.join("xone-tray")
+}
+
+/// Returns true unless the user has explicitly written "0" to the config file.
+pub fn notifications_enabled() -> bool {
+    fs::read_to_string(config_dir().join("notifications"))
+        .map(|s| s.trim() != "0")
+        .unwrap_or(true)
+}
+
+/// Persist the notification toggle.
+pub fn set_notifications_enabled(enabled: bool) {
+    let dir = config_dir();
+    let _ = fs::create_dir_all(&dir);
+    let _ = fs::write(dir.join("notifications"), if enabled { "1" } else { "0" });
+}
+
 /// First dongle directory that contains a 'pairing' file.
 // ponytail: first dongle only - multi-dongle is YAGNI, revisit if reported.
 pub fn dongle_dir() -> Option<PathBuf> {
@@ -384,6 +413,25 @@ mod tests {
             std::env::remove_var("XONE_SYSFS_BASE");
             std::env::remove_var("XONE_LEDS_BASE");
         }
+        let _ = fs::remove_dir_all(&tmp);
+    }
+
+    #[test]
+    fn test_notifications_config() {
+        let tmp = std::env::temp_dir().join("xone-tray-test-cfg");
+        let _ = fs::remove_dir_all(&tmp);
+        unsafe { std::env::set_var("XONE_CONFIG_DIR", tmp.to_str().unwrap()) };
+
+        // Default: no file → enabled.
+        assert!(notifications_enabled());
+
+        set_notifications_enabled(false);
+        assert!(!notifications_enabled());
+
+        set_notifications_enabled(true);
+        assert!(notifications_enabled());
+
+        unsafe { std::env::remove_var("XONE_CONFIG_DIR") };
         let _ = fs::remove_dir_all(&tmp);
     }
 }

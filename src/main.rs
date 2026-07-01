@@ -15,6 +15,7 @@ struct XoneTray {
     can_write: bool,
     update_available: Option<String>,
     low_battery_notified: HashSet<PathBuf>,
+    notifications: bool,
 }
 
 impl XoneTray {
@@ -26,6 +27,7 @@ impl XoneTray {
             can_write: false,
             update_available: None,
             low_battery_notified: HashSet::new(),
+            notifications: xone::notifications_enabled(),
         };
         t.refresh();
         t
@@ -42,18 +44,20 @@ impl XoneTray {
         self.leds = xone::leds();
         // Prune notified set to controllers still present.
         self.low_battery_notified.retain(|p| self.leds.contains(p));
-        for led in &self.leds {
-            match xone::battery(led).as_deref() {
-                Some("Low") | Some("Critical") => {
-                    if self.low_battery_notified.insert(led.clone()) {
-                        xone::notify_low_battery(
-                            &xone::led_name(led),
-                            xone::battery(led).as_deref().unwrap_or("Low"),
-                        );
+        if self.notifications {
+            for led in &self.leds {
+                match xone::battery(led).as_deref() {
+                    Some("Low") | Some("Critical") => {
+                        if self.low_battery_notified.insert(led.clone()) {
+                            xone::notify_low_battery(
+                                &xone::led_name(led),
+                                xone::battery(led).as_deref().unwrap_or("Low"),
+                            );
+                        }
                     }
-                }
-                _ => {
-                    self.low_battery_notified.remove(led);
+                    _ => {
+                        self.low_battery_notified.remove(led);
+                    }
                 }
             }
         }
@@ -111,6 +115,16 @@ impl Tray for XoneTray {
             StandardItem {
                 label: format!("Connected: {}", self.clients),
                 enabled: false,
+                ..Default::default()
+            }
+            .into(),
+            CheckmarkItem {
+                label: "Low battery notifications".into(),
+                checked: self.notifications,
+                activate: Box::new(|tray: &mut Self| {
+                    tray.notifications = !tray.notifications;
+                    xone::set_notifications_enabled(tray.notifications);
+                }),
                 ..Default::default()
             }
             .into(),
